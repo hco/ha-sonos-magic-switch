@@ -4,7 +4,7 @@
   "codeowners": ["@hco"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://www.home-assistant.io/integrations/sonos_magic_switch",
+  "documentation": "https://github.com/hco/ha-sonos-magic-switch",
   "homekit": {},
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/hco/ha-sonos-magic-switch/issues",
