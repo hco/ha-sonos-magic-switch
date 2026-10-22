@@ -3,8 +3,7 @@
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, State
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -124,7 +123,7 @@ class SonosMagicSwitch(SwitchEntity):
         return None
 
     def __update_entity_picture(self) -> None:
-        # self._attr_entity_picture = self.__get_entity_picture()  # noqa: ERA001
+        # self._attr_entity_picture = self.__get_entity_picture()
         return None
 
     async def __get_media_player_entity_id(self) -> str:
@@ -132,7 +131,7 @@ class SonosMagicSwitch(SwitchEntity):
             self.hass, self._original_device.id
         ).entity_id
 
-    async def _media_player_state_changed(self, event: Event) -> None:  # noqa: ARG002, required for async_track_state_change_event
+    async def _media_player_state_changed(self, event: Event) -> None:
         self.__update_entity_picture()
         await self._update_state_from_media_player()
 

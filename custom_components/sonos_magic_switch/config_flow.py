@@ -1,8 +1,7 @@
 """Config flow for Sonos Magic Switch."""
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_entry_flow
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import config_entry_flow, device_registry as dr
 
 from .const import DOMAIN
 
