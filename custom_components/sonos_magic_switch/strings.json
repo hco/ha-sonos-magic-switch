@@ -5,5 +5,12 @@
         "description": "[%key:common::config_flow::description::confirm_setup%]"
       }
     }
+  },
+  "entity": {
+    "switch": {
+      "magic_switch": {
+        "name": "Magic Switch"
+      }
+    }
   }
 }

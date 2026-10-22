@@ -2,9 +2,10 @@
 
 from collections import defaultdict
 
+from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, callback, split_entity_id
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.helper_integration import async_remove_helper_devices
 
@@ -14,9 +15,39 @@ PLATFORMS: list[Platform] = [Platform.SWITCH]
 
 LEGACY_UNIQUE_ID_SUFFIX = "_sonos_magic_switch"
 
+# Media player registry changes which add, remove or move a switch
+RELOAD_ON_CHANGES = {"entity_id", "device_id", "disabled_by"}
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sonos Magic Switch from a config entry."""
+
+    @callback
+    def _async_is_sonos_media_player_change(
+        event_data: er.EventEntityRegistryUpdatedData,
+    ) -> bool:
+        if split_entity_id(event_data["entity_id"])[0] != MEDIA_PLAYER_DOMAIN:
+            return False
+        if event_data["action"] == "update" and not (
+            RELOAD_ON_CHANGES & event_data["changes"].keys()
+        ):
+            return False
+        entity = er.async_get(hass).async_get(event_data["entity_id"])
+        return entity is not None and entity.platform == SONOS_DOMAIN
+
+    @callback
+    def _async_reload(_: Event[er.EventEntityRegistryUpdatedData]) -> None:
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    # Pick up added, renamed and re-enabled Sonos players
+    entry.async_on_unload(
+        hass.bus.async_listen(
+            er.EVENT_ENTITY_REGISTRY_UPDATED,
+            _async_reload,
+            event_filter=_async_is_sonos_media_player_change,
+        )
+    )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

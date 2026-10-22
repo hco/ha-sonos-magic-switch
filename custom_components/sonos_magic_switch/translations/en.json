@@ -5,5 +5,12 @@
         "description": "Do you want to start setup?"
       }
     }
+  },
+  "entity": {
+    "switch": {
+      "magic_switch": {
+        "name": "Magic Switch"
+      }
+    }
   }
 }
