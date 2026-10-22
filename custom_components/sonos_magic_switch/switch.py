@@ -8,6 +8,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import LOGGER
+from .util import async_get_sonos_media_players
 
 
 async def async_setup_entry(
@@ -22,50 +23,31 @@ async def async_setup_entry(
 
     LOGGER.debug("Setting up for config entry '%s'", config_entry.entry_id)
 
-    # filter all devices that contain a tuple whichs first element is "sonos" in the
-    # identifiers and that have a name
-    sonos_devices = [
-        device
-        for device in device_registry.devices.values()
-        if any(identifier[0] == "sonos" for identifier in device.identifiers)
-        if get_media_player_for_device(hass, device.id) is not None
-    ]
-
     async_add_entities(
-        [SonosMagicSwitch(device) for device in sonos_devices if device.name]
-    )
-
-
-def get_media_player_for_device(hass: HomeAssistant, device_id: str) -> State | None:
-    """Retrieve the media player entity associated with the given device ID."""
-    entity_registry = er.async_get(hass)
-    device_entities = er.async_entries_for_device(entity_registry, device_id)
-
-    return next(
-        (
-            entity
-            for entity in device_entities
-            if entity.entity_id.startswith("media_player.")
-        ),
-        None,
+        SonosMagicSwitch(device, media_player)
+        for media_player in async_get_sonos_media_players(hass)
+        if media_player.device_id
+        if (device := device_registry.async_get(media_player.device_id))
+        if device.name
     )
 
 
 class SonosMagicSwitch(SwitchEntity):
     """Representation of a Sonos Magic Switch."""
 
-    _original_device: dr.DeviceEntry
     _media_player_entity_id: str
 
-    def __init__(self, device: dr.DeviceEntry) -> None:
+    def __init__(
+        self, device: dr.AnyDeviceEntry, media_player: er.RegistryEntry
+    ) -> None:
         """Initialize the Sonos Magic Switch."""
-        self._original_device = device
-        """ abort if the device has no name """
-        if not device.name:
-            return
+        # Link to the Sonos device instead of claiming it via device_info, which
+        # would create a duplicate device owned by this integration
+        self.device_entry = device
+        self._media_player_entity_id = media_player.entity_id
 
-        self._attr_name = device.name + " Magic Switch"
-        self._attr_unique_id = device.id + "_sonos_magic_switch"
+        self._attr_name = f"{device.name} Magic Switch"
+        self._attr_unique_id = media_player.unique_id
         self._attr_is_on = False
 
     async def async_added_to_hass(self) -> None:
@@ -76,11 +58,6 @@ class SonosMagicSwitch(SwitchEntity):
         # called where ever there are changes.
         # The call back registration is done once this entity is registered with HA
         # (rather than in the __init__)
-        self._media_player_entity_id = await self.__get_media_player_entity_id()
-
-        if not self._media_player_entity_id:
-            return
-
         self.unsub = async_track_state_change_event(
             self.hass, self._media_player_entity_id, self._media_player_state_changed
         )
@@ -126,11 +103,6 @@ class SonosMagicSwitch(SwitchEntity):
         # self._attr_entity_picture = self.__get_entity_picture()
         return None
 
-    async def __get_media_player_entity_id(self) -> str:
-        return get_media_player_for_device(
-            self.hass, self._original_device.id
-        ).entity_id
-
     async def _media_player_state_changed(self, event: Event) -> None:
         self.__update_entity_picture()
         await self._update_state_from_media_player()
@@ -150,13 +122,6 @@ class SonosMagicSwitch(SwitchEntity):
         # The opposite of async_added_to_hass. Remove any registered call backs here.
         if self.unsub:
             self.unsub()
-
-    @property
-    def device_info(self) -> dr.DeviceInfo:
-        """Return the device info."""
-        return dr.DeviceInfo(
-            identifiers=self._original_device.identifiers,
-        )
 
     def turn_on(self) -> None:
         """Join group or start playing if no group exists."""
