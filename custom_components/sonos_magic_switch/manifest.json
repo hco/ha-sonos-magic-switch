@@ -2,6 +2,7 @@
   "domain": "sonos_magic_switch",
   "name": "Sonos Magic Switch",
   "after_dependencies": ["sonos"],
+  "categories": ["media_entertainment.speakers_audio"],
   "codeowners": ["@hco"],
   "config_flow": true,
   "documentation": "https://github.com/hco/ha-sonos-magic-switch",
