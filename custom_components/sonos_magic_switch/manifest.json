@@ -1,16 +1,14 @@
 {
   "domain": "sonos_magic_switch",
   "name": "Sonos Magic Switch",
+  "after_dependencies": ["sonos"],
   "codeowners": ["@hco"],
   "config_flow": true,
-  "dependencies": [],
   "documentation": "https://github.com/hco/ha-sonos-magic-switch",
-  "homekit": {},
+  "integration_type": "helper",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/hco/ha-sonos-magic-switch/issues",
   "requirements": [],
   "single_config_entry": true,
-  "ssdp": [],
-  "version": "0.1.2",
-  "zeroconf": []
+  "version": "0.2.0"
 }
