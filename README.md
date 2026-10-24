@@ -40,6 +40,10 @@ Switches for Sonos players added later are created automatically, and removed or
 
 <!---->
 
+## Reporting issues
+
+If a switch joins the wrong group or does nothing, please attach its diagnostics to the [issue](https://github.com/hco/ha-sonos-magic-switch/issues): go to Settings -> Devices & services -> Sonos Magic Switch, open the three dots menu and select `Download diagnostics`. They show the Sonos players and what turning each switch on or off would do.
+
 ## Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)

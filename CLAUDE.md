@@ -30,6 +30,3 @@ Options-Flow:
   gesetzt wird.
 - **Regel für die Gruppenwahl:** Neben der größten Gruppe auch die zuletzt
   gestartete oder eine bevorzugte Gruppe.
-- **Diagnose-Download** (`diagnostics.py`): Gruppen- und Wiedergabezustände der
-  Sonos-Player und die Zuordnung der Switches herunterladbar machen, damit
-  Bugreports nachvollziehbar sind.
