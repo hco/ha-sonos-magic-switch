@@ -10,6 +10,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.helper_integration import async_remove_helper_devices
 
 from .const import LOGGER, SONOS_DOMAIN
+from .util import async_get_sonos_media_players
 
 PLATFORMS: list[Platform] = [Platform.SWITCH]
 
@@ -21,6 +22,12 @@ RELOAD_ON_CHANGES = {"entity_id", "device_id", "disabled_by"}
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sonos Magic Switch from a config entry."""
+    _async_follow_media_players(hass, entry)
+    # Removed players are no longer in the registry, so remember the Sonos ones
+    sonos_entity_ids = {
+        media_player.entity_id
+        for media_player in async_get_sonos_media_players(hass, include_disabled=True)
+    }
 
     @callback
     def _async_is_sonos_media_player_change(
@@ -28,6 +35,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ) -> bool:
         if split_entity_id(event_data["entity_id"])[0] != MEDIA_PLAYER_DOMAIN:
             return False
+        if event_data["action"] == "remove":
+            return event_data["entity_id"] in sonos_entity_ids
         if event_data["action"] == "update" and not (
             RELOAD_ON_CHANGES & event_data["changes"].keys()
         ):
@@ -39,7 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def _async_reload(_: Event[er.EventEntityRegistryUpdatedData]) -> None:
         hass.config_entries.async_schedule_reload(entry.entry_id)
 
-    # Pick up added, renamed and re-enabled Sonos players
+    # Pick up added, removed, renamed, disabled and re-enabled Sonos players
     entry.async_on_unload(
         hass.bus.async_listen(
             er.EVENT_ENTITY_REGISTRY_UPDATED,
@@ -50,6 +59,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+@callback
+def _async_follow_media_players(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove or disable switches whose Sonos player was removed or disabled."""
+    entity_registry = er.async_get(hass)
+    media_players = {
+        media_player.unique_id: media_player
+        for media_player in async_get_sonos_media_players(hass, include_disabled=True)
+    }
+
+    for switch in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        if (media_player := media_players.get(switch.unique_id)) is None:
+            entity_registry.async_remove(switch.entity_id)
+        elif media_player.disabled and not switch.disabled:
+            entity_registry.async_update_entity(
+                switch.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
+            )
+            # Unloading left an unavailable placeholder, which Home Assistant only
+            # cleans up for removed entities
+            hass.states.async_remove(switch.entity_id)
+        elif (
+            not media_player.disabled
+            and switch.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+        ):
+            entity_registry.async_update_entity(switch.entity_id, disabled_by=None)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -8,8 +8,10 @@ from .const import SONOS_DOMAIN
 
 
 @callback
-def async_get_sonos_media_players(hass: HomeAssistant) -> list[er.RegistryEntry]:
-    """Return the registry entries of all enabled Sonos media players."""
+def async_get_sonos_media_players(
+    hass: HomeAssistant, *, include_disabled: bool = False
+) -> list[er.RegistryEntry]:
+    """Return the registry entries of the Sonos media players."""
     entity_registry = er.async_get(hass)
     return [
         entity
@@ -17,5 +19,6 @@ def async_get_sonos_media_players(hass: HomeAssistant) -> list[er.RegistryEntry]
         for entity in er.async_entries_for_config_entry(
             entity_registry, config_entry.entry_id
         )
-        if entity.domain == MEDIA_PLAYER_DOMAIN and not entity.disabled
+        if entity.domain == MEDIA_PLAYER_DOMAIN
+        if include_disabled or not entity.disabled
     ]
