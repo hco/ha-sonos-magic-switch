@@ -3,21 +3,12 @@
 from typing import Any
 
 from homeassistant.components.media_player import (
-    ATTR_GROUP_MEMBERS,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
-    SERVICE_JOIN,
-    SERVICE_UNJOIN,
     MediaPlayerState,
 )
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_ENTITY_ID,
-    ATTR_ENTITY_PICTURE,
-    SERVICE_MEDIA_PAUSE,
-    SERVICE_MEDIA_PLAY,
-    STATE_UNAVAILABLE,
-)
+from homeassistant.const import ATTR_ENTITY_PICTURE, STATE_UNAVAILABLE
 from homeassistant.core import (
     Event,
     EventStateChangedData,
@@ -30,7 +21,13 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import LOGGER
-from .util import async_get_sonos_media_players
+from .util import (
+    MediaPlayerAction,
+    async_find_largest_playing_group_leader,
+    async_get_sonos_media_players,
+    async_get_turn_off_action,
+    async_get_turn_on_action,
+)
 
 
 async def async_setup_entry(
@@ -107,69 +104,25 @@ class SonosMagicSwitch(SwitchEntity):
         if not self._attr_available:
             return None
         if not self._attr_is_on and (
-            group_leader := self._async_find_largest_playing_group_leader()
+            group_leader := async_find_largest_playing_group_leader(
+                self.hass, self._media_player_entity_id
+            )
         ):
             state = self.hass.states.get(group_leader)
         return state.attributes.get(ATTR_ENTITY_PICTURE) if state else None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Join the largest playing group, or start playing if there is none."""
-        if (group_leader := self._async_find_largest_playing_group_leader()) is None:
-            await self._async_call_media_player_service(
-                SERVICE_MEDIA_PLAY, {ATTR_ENTITY_ID: self._media_player_entity_id}
-            )
-            return
-
-        await self._async_call_media_player_service(
-            SERVICE_JOIN,
-            {
-                ATTR_ENTITY_ID: group_leader,
-                ATTR_GROUP_MEMBERS: [self._media_player_entity_id],
-            },
+        await self._async_call_media_player_action(
+            async_get_turn_on_action(self.hass, self._media_player_entity_id)
         )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Pause if the media player is alone, otherwise leave the group."""
-        if (state := self.hass.states.get(self._media_player_entity_id)) is None:
-            return
+        if action := async_get_turn_off_action(self.hass, self._media_player_entity_id):
+            await self._async_call_media_player_action(action)
 
-        if len(_group_members(state)) > 1:
-            service = SERVICE_UNJOIN
-        else:
-            service = SERVICE_MEDIA_PAUSE
-
-        await self._async_call_media_player_service(
-            service, {ATTR_ENTITY_ID: self._media_player_entity_id}
-        )
-
-    async def _async_call_media_player_service(
-        self, service: str, data: dict[str, Any]
-    ) -> None:
+    async def _async_call_media_player_action(self, action: MediaPlayerAction) -> None:
         await self.hass.services.async_call(
-            MEDIA_PLAYER_DOMAIN, service, data, blocking=True
+            MEDIA_PLAYER_DOMAIN, action.service, action.data, blocking=True
         )
-
-    @callback
-    def _async_find_largest_playing_group_leader(self) -> str | None:
-        """Return the leader of the largest playing group this player is not in."""
-        playing_groups = [
-            _group_members(state) or [state.entity_id]
-            for media_player in async_get_sonos_media_players(self.hass)
-            if (state := self.hass.states.get(media_player.entity_id)) is not None
-            if state.state == MediaPlayerState.PLAYING
-        ]
-        other_groups = [
-            group
-            for group in playing_groups
-            if self._media_player_entity_id not in group
-        ]
-
-        if not other_groups:
-            return None
-
-        # The first group member is the group leader
-        return max(other_groups, key=len)[0]
-
-
-def _group_members(state: State) -> list[str]:
-    return state.attributes.get(ATTR_GROUP_MEMBERS) or []
