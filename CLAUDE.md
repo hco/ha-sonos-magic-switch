@@ -25,5 +25,3 @@ Options-Flow:
   gesetzt wird.
 - **Regel für die Gruppenwahl:** Neben der größten Gruppe auch die zuletzt
   gestartete oder eine bevorzugte Gruppe.
-- **Albumcover als Entity-Bild** (`entity_picture` vom Media-Player übernehmen);
-  gab es früher schon einmal.

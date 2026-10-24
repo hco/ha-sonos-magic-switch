@@ -11,6 +11,8 @@ Every Sonos player gets a switch, which is shown on the player's device and is o
 - Turning it **on** will join the largest group of sonos players. If there is no playing group, it will try to start playing on the current player, with the last played source.
 - If you turn it **off**, it will leave the group, or stop playing.
 
+The switch shows the album cover of what is playing, or of what would play when it is turned on.
+
 Switches for Sonos players added later are created automatically, and removed or disabled along with their player.
 
 **This integration will set up the following platforms.**

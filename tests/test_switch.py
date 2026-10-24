@@ -31,9 +31,20 @@ async def setup_integration(
 
 
 def _set_player(
-    hass: HomeAssistant, entity_id: str, state: str, group: list[str] | None = None
+    hass: HomeAssistant,
+    entity_id: str,
+    state: str,
+    group: list[str] | None = None,
+    picture: str | None = None,
 ) -> None:
-    hass.states.async_set(entity_id, state, {"group_members": group or [entity_id]})
+    attributes = {"group_members": group or [entity_id]}
+    if picture:
+        attributes["entity_picture"] = picture
+    hass.states.async_set(entity_id, state, attributes)
+
+
+def _switch_picture(hass: HomeAssistant) -> str | None:
+    return hass.states.get(KITCHEN_SWITCH).attributes.get("entity_picture")
 
 
 async def _call_switch(hass: HomeAssistant, service: str) -> None:
@@ -139,3 +150,48 @@ async def test_turn_off_without_group_members_attribute(hass: HomeAssistant) -> 
     await _call_switch(hass, "turn_off")
 
     assert len(calls) == 1
+
+
+async def test_picture_of_playing_player(hass: HomeAssistant) -> None:
+    """A playing switch shows the cover of its own player."""
+    _set_player(hass, LIVING_ROOM, "playing", picture="/living_room.jpg")
+    _set_player(hass, KITCHEN, "playing", picture="/kitchen.jpg")
+    await hass.async_block_till_done()
+
+    assert _switch_picture(hass) == "/kitchen.jpg"
+
+
+async def test_picture_of_group_to_join(hass: HomeAssistant) -> None:
+    """A switch that would join a group shows and follows the group's cover."""
+    _set_player(hass, KITCHEN, "paused", picture="/kitchen.jpg")
+    group = [LIVING_ROOM, BATH]
+    _set_player(hass, BATH, "playing", group, picture="/bath.jpg")
+    _set_player(hass, LIVING_ROOM, "playing", group, picture="/song_1.jpg")
+    await hass.async_block_till_done()
+    assert _switch_picture(hass) == "/song_1.jpg"
+
+    _set_player(hass, LIVING_ROOM, "playing", group, picture="/song_2.jpg")
+    await hass.async_block_till_done()
+    assert _switch_picture(hass) == "/song_2.jpg"
+
+    hass.states.async_set(KITCHEN, STATE_UNAVAILABLE)
+    await hass.async_block_till_done()
+    assert _switch_picture(hass) is None
+
+
+async def test_picture_of_paused_player(hass: HomeAssistant) -> None:
+    """Without a group to join, the switch shows what it would resume."""
+    _set_player(hass, KITCHEN, "paused", picture="/kitchen.jpg")
+    await hass.async_block_till_done()
+    assert _switch_picture(hass) == "/kitchen.jpg"
+
+    _set_player(hass, KITCHEN, "paused")
+    await hass.async_block_till_done()
+    assert _switch_picture(hass) is None
+
+
+async def test_picture_is_not_recorded(hass: HomeAssistant) -> None:
+    """The cover is left out of the history, like for the media players."""
+    state = hass.states.get(KITCHEN_SWITCH)
+
+    assert "entity_picture" in state.state_info["unrecorded_attributes"]
