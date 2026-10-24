@@ -85,6 +85,11 @@ class SonosMagicSwitch(SwitchEntity):
         self._async_update_from_sonos()
 
     @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep the switch in place when its entity_id is changed."""
+        # Nothing set up in async_added_to_hass depends on the own entity_id
+
+    @callback
     def _async_sonos_state_changed(self, event: Event[EventStateChangedData]) -> None:
         self._async_update_from_sonos()
         self.async_write_ha_state()

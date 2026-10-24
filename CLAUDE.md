@@ -10,6 +10,11 @@
   (https://claude.ai/code/routines/trig_01Bn5oNAfFB56ePerLiLcZJZ). Sonst von Hand:
   `gh workflow enable validate.yml && gh workflow run validate.yml`. Ist hassfest
   dann grün, diesen Punkt entfernen.
+- **Auf HA 2026.11 anheben:** `homeassistant` und
+  `pytest-homeassistant-custom-component` in `requirements.txt` gemeinsam von Hand
+  anheben (Dependabot ignoriert beide). Dann einen Test ergänzen, dass der Switch
+  beim Ändern seiner entity_id erhalten bleibt; `async_entity_id_changed` ruft HA
+  erst ab 2026.11 auf.
 
 ## Ideen
 
