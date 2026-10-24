@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Möchtest du mit der Einrichtung beginnen?"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen für Sonos Magic Switch",
+        "data": {
+          "volume_per_room": "Lautstärke pro Raum einstellen"
+        },
+        "data_description": {
+          "volume_per_room": "Fügt jedem Sonos-Gerät Einstellungen hinzu, ob der Magic Switch beim Einschalten die Lautstärke festlegt oder begrenzt."
+        }
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "volume": {
+        "name": "Magic-Switch-Lautstärke"
+      }
+    },
+    "select": {
+      "volume_mode": {
+        "name": "Lautstärke beim Einschalten",
+        "state": {
+          "keep": "Nicht ändern",
+          "set": "Festlegen",
+          "limit": "Begrenzen"
+        }
+      }
+    },
+    "switch": {
+      "magic_switch": {
+        "name": "Magic Switch"
+      }
+    }
+  }
+}
