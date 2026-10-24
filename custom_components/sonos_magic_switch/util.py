@@ -1,20 +1,48 @@
 """Helpers for looking up Sonos players and deciding what a switch does."""
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from homeassistant.components.media_player import (
     ATTR_GROUP_MEMBERS,
+    ATTR_MEDIA_VOLUME_LEVEL,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
     SERVICE_JOIN,
     SERVICE_UNJOIN,
     MediaPlayerState,
 )
-from homeassistant.const import ATTR_ENTITY_ID, SERVICE_MEDIA_PAUSE, SERVICE_MEDIA_PLAY
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    SERVICE_MEDIA_PAUSE,
+    SERVICE_MEDIA_PLAY,
+    SERVICE_VOLUME_SET,
+)
 from homeassistant.core import HomeAssistant, State, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import SONOS_DOMAIN
+from .const import DEFAULT_VOLUME, SONOS_DOMAIN
+
+
+class VolumeMode(StrEnum):
+    """How a room's volume is changed when its switch is turned on."""
+
+    KEEP = "keep"
+    SET = "set"
+    LIMIT = "limit"
+
+
+@dataclass
+class VolumeSetting:
+    """The volume a room is turned on with, shared by its settings entities."""
+
+    mode: VolumeMode = VolumeMode.KEEP
+    level: float = DEFAULT_VOLUME
+
+
+# The volume settings by the unique id of the Sonos media player
+type SonosMagicSwitchConfigEntry = ConfigEntry[dict[str, VolumeSetting]]
 
 
 @dataclass(frozen=True)
@@ -43,6 +71,20 @@ def async_get_sonos_media_players(
 
 
 @callback
+def async_get_sonos_devices(
+    hass: HomeAssistant,
+) -> list[tuple[er.RegistryEntry, dr.DeviceEntry]]:
+    """Return the enabled Sonos media players together with their devices."""
+    device_registry = dr.async_get(hass)
+    return [
+        (media_player, device)
+        for media_player in async_get_sonos_media_players(hass)
+        if media_player.device_id
+        if (device := device_registry.async_get(media_player.device_id))
+    ]
+
+
+@callback
 def async_find_largest_playing_group_leader(
     hass: HomeAssistant, media_player_entity_id: str
 ) -> str | None:
@@ -65,22 +107,65 @@ def async_find_largest_playing_group_leader(
 
 
 @callback
-def async_get_turn_on_action(
-    hass: HomeAssistant, media_player_entity_id: str
-) -> MediaPlayerAction:
-    """Join the largest playing group, or start playing if there is none."""
+def async_get_turn_on_actions(
+    hass: HomeAssistant,
+    media_player_entity_id: str,
+    volume_setting: VolumeSetting | None,
+) -> list[MediaPlayerAction]:
+    """Join the largest playing group, or start playing if there is none.
+
+    The volume is changed first, so the room does not start out too loud.
+    """
+    actions = []
+    if volume_action := _async_get_volume_action(
+        hass, media_player_entity_id, volume_setting
+    ):
+        actions.append(volume_action)
+
     if (
         group_leader := async_find_largest_playing_group_leader(
             hass, media_player_entity_id
         )
     ) is None:
-        return MediaPlayerAction(
-            SERVICE_MEDIA_PLAY, {ATTR_ENTITY_ID: media_player_entity_id}
+        actions.append(
+            MediaPlayerAction(
+                SERVICE_MEDIA_PLAY, {ATTR_ENTITY_ID: media_player_entity_id}
+            )
         )
+    else:
+        actions.append(
+            MediaPlayerAction(
+                SERVICE_JOIN,
+                {
+                    ATTR_ENTITY_ID: group_leader,
+                    ATTR_GROUP_MEMBERS: [media_player_entity_id],
+                },
+            )
+        )
+    return actions
+
+
+@callback
+def _async_get_volume_action(
+    hass: HomeAssistant,
+    media_player_entity_id: str,
+    volume_setting: VolumeSetting | None,
+) -> MediaPlayerAction | None:
+    if volume_setting is None or volume_setting.mode is VolumeMode.KEEP:
+        return None
+
+    volume_level = volume_setting.level / 100
+    # An unknown volume is limited as well, so the room cannot start too loud
+    if volume_setting.mode is VolumeMode.LIMIT and (
+        (state := hass.states.get(media_player_entity_id)) is not None
+        and (current := state.attributes.get(ATTR_MEDIA_VOLUME_LEVEL)) is not None
+        and current <= volume_level
+    ):
+        return None
 
     return MediaPlayerAction(
-        SERVICE_JOIN,
-        {ATTR_ENTITY_ID: group_leader, ATTR_GROUP_MEMBERS: [media_player_entity_id]},
+        SERVICE_VOLUME_SET,
+        {ATTR_ENTITY_ID: media_player_entity_id, ATTR_MEDIA_VOLUME_LEVEL: volume_level},
     )
 
 

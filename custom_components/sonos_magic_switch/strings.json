@@ -6,7 +6,35 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sonos Magic Switch options",
+        "data": {
+          "volume_per_room": "Set the volume per room"
+        },
+        "data_description": {
+          "volume_per_room": "Adds settings to every Sonos device for whether the magic switch sets or limits the volume when turning on."
+        }
+      }
+    }
+  },
   "entity": {
+    "number": {
+      "volume": {
+        "name": "Magic Switch volume"
+      }
+    },
+    "select": {
+      "volume_mode": {
+        "name": "Volume when turning on",
+        "state": {
+          "keep": "Don't change",
+          "set": "Set",
+          "limit": "Limit"
+        }
+      }
+    },
     "switch": {
       "magic_switch": {
         "name": "Magic Switch"

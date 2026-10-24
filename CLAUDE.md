@@ -26,7 +26,5 @@ Options-Flow:
   allein starten.
 - **Ersatz-Favorit:** Bei leerer Queue tut `media_play` nichts. Dann stattdessen
   einen eingestellten Sonos-Favoriten oder eine Playlist starten.
-- **Lautstärke beim Beitreten:** Pro Raum eine Lautstärke, die beim Einschalten
-  gesetzt wird.
 - **Regel für die Gruppenwahl:** Neben der größten Gruppe auch die zuletzt
   gestartete oder eine bevorzugte Gruppe.

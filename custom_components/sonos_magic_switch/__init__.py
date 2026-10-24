@@ -3,16 +3,18 @@
 from collections import defaultdict
 
 from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import Event, HomeAssistant, callback, split_entity_id
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.helper_integration import async_remove_helper_devices
 
-from .const import LOGGER, SONOS_DOMAIN
-from .util import async_get_sonos_media_players
+from .const import CONF_VOLUME_PER_ROOM, LOGGER, SONOS_DOMAIN
+from .util import SonosMagicSwitchConfigEntry, async_get_sonos_media_players
 
-PLATFORMS: list[Platform] = [Platform.SWITCH]
+# The number and select platforms only add entities if the volume is set per room
+PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SELECT, Platform.SWITCH]
 
 LEGACY_UNIQUE_ID_SUFFIX = "_sonos_magic_switch"
 
@@ -20,8 +22,11 @@ LEGACY_UNIQUE_ID_SUFFIX = "_sonos_magic_switch"
 RELOAD_ON_CHANGES = {"entity_id", "device_id", "disabled_by"}
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: SonosMagicSwitchConfigEntry
+) -> bool:
     """Set up Sonos Magic Switch from a config entry."""
+    entry.runtime_data = {}
     _async_follow_media_players(hass, entry)
     # Removed players are no longer in the registry, so remember the Sonos ones
     sonos_entity_ids = {
@@ -63,31 +68,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 @callback
 def _async_follow_media_players(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove or disable switches whose Sonos player was removed or disabled."""
+    """Remove or disable entities whose Sonos player was removed or disabled.
+
+    The volume settings are removed as well once they are no longer wanted.
+    """
     entity_registry = er.async_get(hass)
     media_players = {
         media_player.unique_id: media_player
         for media_player in async_get_sonos_media_players(hass, include_disabled=True)
     }
+    volume_per_room = entry.options.get(CONF_VOLUME_PER_ROOM, False)
 
-    for switch in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
-        if (media_player := media_players.get(switch.unique_id)) is None:
-            entity_registry.async_remove(switch.entity_id)
-        elif media_player.disabled and not switch.disabled:
+    for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        if (media_player := media_players.get(entity.unique_id)) is None or (
+            entity.domain != SWITCH_DOMAIN and not volume_per_room
+        ):
+            entity_registry.async_remove(entity.entity_id)
+        elif media_player.disabled and not entity.disabled:
             entity_registry.async_update_entity(
-                switch.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
+                entity.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
             )
             # Unloading left an unavailable placeholder, which Home Assistant only
             # cleans up for removed entities
-            hass.states.async_remove(switch.entity_id)
+            hass.states.async_remove(entity.entity_id)
         elif (
             not media_player.disabled
-            and switch.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+            and entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
         ):
-            entity_registry.async_update_entity(switch.entity_id, disabled_by=None)
+            entity_registry.async_update_entity(entity.entity_id, disabled_by=None)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: SonosMagicSwitchConfigEntry
+) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 

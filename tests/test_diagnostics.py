@@ -39,6 +39,7 @@ async def test_diagnostics(
     )
 
     assert diagnostics == {
+        "options": {},
         "media_players": {
             "media_player.kitchen": {
                 "unique_id": "RINCON_1",
@@ -64,13 +65,16 @@ async def test_diagnostics(
                 "media_player": "media_player.kitchen",
                 "state": "off",
                 "entity_picture": "**REDACTED**",
-                "turn_on": {
-                    "service": "join",
-                    "data": {
-                        "entity_id": "media_player.living_room",
-                        "group_members": ["media_player.kitchen"],
-                    },
-                },
+                "volume": None,
+                "turn_on": [
+                    {
+                        "service": "join",
+                        "data": {
+                            "entity_id": "media_player.living_room",
+                            "group_members": ["media_player.kitchen"],
+                        },
+                    }
+                ],
                 "turn_off": {
                     "service": "media_pause",
                     "data": {"entity_id": "media_player.kitchen"},
@@ -82,10 +86,13 @@ async def test_diagnostics(
                 "media_player": "media_player.living_room",
                 "state": "on",
                 "entity_picture": "**REDACTED**",
-                "turn_on": {
-                    "service": "media_play",
-                    "data": {"entity_id": "media_player.living_room"},
-                },
+                "volume": None,
+                "turn_on": [
+                    {
+                        "service": "media_play",
+                        "data": {"entity_id": "media_player.living_room"},
+                    }
+                ],
                 "turn_off": {
                     "service": "media_pause",
                     "data": {"entity_id": "media_player.living_room"},

@@ -17,9 +17,11 @@ Switches for Sonos players added later are created automatically, and removed or
 
 **This integration will set up the following platforms.**
 
-| Platform | Description                                        |
-| -------- | -------------------------------------------------- |
-| `switch` | Join or leave a sonos group, or start/stop playing |
+| Platform | Description                                                    |
+| -------- | -------------------------------------------------------------- |
+| `switch` | Join or leave a sonos group, or start/stop playing             |
+| `select` | Whether turning the switch on sets or limits the room's volume |
+| `number` | The volume the switch sets or limits the room to               |
 
 ## Requirements
 
@@ -38,7 +40,14 @@ Switches for Sonos players added later are created automatically, and removed or
 
 ## Configuration is done in the UI
 
-<!---->
+### Volume per room
+
+To keep a room from starting too loud, turn on `Set the volume per room` in the options of the integration. Every Sonos device then gets two settings:
+
+- `Volume when turning on`: `Don't change` (the default), `Set` the volume, or `Limit` it, which only lowers a louder volume. If the current volume is unknown, `Limit` sets it to be safe.
+- `Magic Switch volume`: the volume to set or limit to, 25% by default.
+
+The volume is only changed when the room is turned on with its magic switch, and before it joins a group or starts playing. Both settings can be changed by automations, e.g. for a lower limit at night.
 
 ## Reporting issues
 
